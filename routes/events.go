@@ -1,12 +1,12 @@
 package routes
 
 import (
-	"fmt"
 	"net/http"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
 	"go_event_api.com/go_api/models"
+	"go_event_api.com/go_api/utils"
 )
 
 func getEventById(context *gin.Context) {
@@ -53,9 +53,28 @@ func getEvents(context *gin.Context) {
 }
 
 func createEvent(context *gin.Context) {
+	token := context.Request.Header.Get("Authorization")
+
+	if token == "" {
+		context.JSON(http.StatusUnauthorized, gin.H{
+			"ok":    false,
+			"error": "token not found",
+		})
+		return
+	}
+
+	userId, err := utils.VerifyToken(token)
+
+	if err != nil {
+		context.JSON(http.StatusUnauthorized, gin.H{
+			"ok":    false,
+			"error": "Invalid token, not authorized",
+		})
+		return
+	}
+
 	var event models.Event
-	err := context.ShouldBindJSON(&event)
-	fmt.Println(err)
+	err = context.ShouldBindJSON(&event)
 
 	if err != nil {
 		context.JSON(http.StatusBadRequest, gin.H{
@@ -66,7 +85,7 @@ func createEvent(context *gin.Context) {
 	}
 
 	// event.ID = 1
-	event.UserID = 1
+	event.UserID = userId
 	newEvent, err := event.Save()
 
 	if err != nil {
@@ -79,7 +98,7 @@ func createEvent(context *gin.Context) {
 
 	context.JSON(http.StatusCreated, gin.H{
 		"ok":   true,
-		"data": newEvent,
+		"data": *newEvent,
 	})
 }
 

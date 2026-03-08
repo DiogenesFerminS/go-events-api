@@ -12,10 +12,10 @@ type Event struct {
 	Description string    `json:"description" binding:"required"`
 	Location    string    `json:"location" binding:"required"`
 	DateTime    time.Time `json:"dateTime" binding:"required"`
-	UserID      int       `json:"user_id"`
+	UserID      int64     `json:"user_id"`
 }
 
-func (e Event) Save() (Event, error) {
+func (e *Event) Save() (*Event, error) {
 	query := `
 	  INSERT INTO events(name, description, location, dateTime, user_id) VALUES (?, ?, ?, ?, ?)
 	`
@@ -23,7 +23,7 @@ func (e Event) Save() (Event, error) {
 	stmt, err := db.DB.Prepare(query)
 
 	if err != nil {
-		return Event{}, err
+		return &Event{}, err
 	}
 
 	defer stmt.Close()
@@ -31,7 +31,7 @@ func (e Event) Save() (Event, error) {
 	result, err := stmt.Exec(e.Name, e.Description, e.Location, e.DateTime, e.UserID)
 
 	if err != nil {
-		return Event{}, err
+		return &Event{}, err
 	}
 	id, err := result.LastInsertId()
 	e.ID = id
