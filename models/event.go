@@ -7,15 +7,15 @@ import (
 )
 
 type Event struct {
-	ID          int64
-	Name        string    `binding:"required"`
-	Description string    `binding:"required"`
-	Location    string    `binding:"required"`
-	DateTime    time.Time `binding:"required"`
-	UserID      int
+	ID          int64     `json:"id"`
+	Name        string    `json:"name" binding:"required" `
+	Description string    `json:"description" binding:"required"`
+	Location    string    `json:"location" binding:"required"`
+	DateTime    time.Time `json:"dateTime" binding:"required"`
+	UserID      int       `json:"user_id"`
 }
 
-func (e Event) Save() error {
+func (e Event) Save() (Event, error) {
 	query := `
 	  INSERT INTO events(name, description, location, dateTime, user_id) VALUES (?, ?, ?, ?, ?)
 	`
@@ -23,20 +23,20 @@ func (e Event) Save() error {
 	stmt, err := db.DB.Prepare(query)
 
 	if err != nil {
-		return err
+		return Event{}, err
 	}
 
 	defer stmt.Close()
 
-	_, err = stmt.Exec(e.Name, e.Description, e.Location, e.DateTime, e.UserID)
+	result, err := stmt.Exec(e.Name, e.Description, e.Location, e.DateTime, e.UserID)
 
 	if err != nil {
-		return err
+		return Event{}, err
 	}
-	// id, err := result.LastInsertId()
-	// e.ID = id
+	id, err := result.LastInsertId()
+	e.ID = id
 
-	return err
+	return e, nil
 }
 
 func GetAllEvents() ([]Event, error) {
@@ -78,4 +78,37 @@ func GetEventById(id int64) (*Event, error) {
 	}
 
 	return &event, nil
+}
+
+func (event Event) Update() error {
+	query := `
+	UPDATE events
+	SET name = ?, description = ?, location = ?, dateTime = ? where id = ?
+  `
+
+	stmt, err := db.DB.Prepare(query)
+
+	if err != nil {
+		return err
+	}
+
+	defer stmt.Close()
+
+	_, err = stmt.Exec(event.Name, event.Description, event.Location, event.DateTime, event.ID)
+
+	return err
+}
+
+func (event Event) Delete() error {
+	query := "DELETE FROM events WHERE id = ?"
+	stmt, err := db.DB.Prepare(query)
+
+	if err != nil {
+		return err
+	}
+
+	defer stmt.Close()
+
+	_, err = stmt.Exec(event.ID)
+	return err
 }
