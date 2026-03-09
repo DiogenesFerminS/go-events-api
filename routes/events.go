@@ -6,7 +6,6 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"go_event_api.com/go_api/models"
-	"go_event_api.com/go_api/utils"
 )
 
 func getEventById(context *gin.Context) {
@@ -53,28 +52,8 @@ func getEvents(context *gin.Context) {
 }
 
 func createEvent(context *gin.Context) {
-	token := context.Request.Header.Get("Authorization")
-
-	if token == "" {
-		context.JSON(http.StatusUnauthorized, gin.H{
-			"ok":    false,
-			"error": "token not found",
-		})
-		return
-	}
-
-	userId, err := utils.VerifyToken(token)
-
-	if err != nil {
-		context.JSON(http.StatusUnauthorized, gin.H{
-			"ok":    false,
-			"error": "Invalid token, not authorized",
-		})
-		return
-	}
-
 	var event models.Event
-	err = context.ShouldBindJSON(&event)
+	err := context.ShouldBindJSON(&event)
 
 	if err != nil {
 		context.JSON(http.StatusBadRequest, gin.H{
@@ -84,7 +63,7 @@ func createEvent(context *gin.Context) {
 		return
 	}
 
-	// event.ID = 1
+	userId := context.GetInt64("userId")
 	event.UserID = userId
 	newEvent, err := event.Save()
 
@@ -113,12 +92,23 @@ func updateEvent(context *gin.Context) {
 		return
 	}
 
-	_, err = models.GetEventById(eventId)
+	currentEvent, err := models.GetEventById(eventId)
 
 	if err != nil {
 		context.JSON(http.StatusNotFound, gin.H{
 			"ok":    false,
 			"error": "Event not found",
+		})
+
+		return
+	}
+
+	userId := context.GetInt64("userId")
+
+	if currentEvent.UserID != userId {
+		context.JSON(http.StatusUnauthorized, gin.H{
+			"ok":    false,
+			"error": "You cannot update another user's event.",
 		})
 
 		return
@@ -170,6 +160,17 @@ func deleteEvent(context *gin.Context) {
 			"ok":    false,
 			"error": "Event not found",
 		})
+		return
+	}
+
+	userId := context.GetInt64("userId")
+
+	if event.UserID != userId {
+		context.JSON(http.StatusUnauthorized, gin.H{
+			"ok":    false,
+			"error": "You cannot delete another user's event.",
+		})
+
 		return
 	}
 
